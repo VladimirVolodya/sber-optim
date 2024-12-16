@@ -3,7 +3,7 @@
 ## Предподготовка
 
 Запуск всех заданий, за исключением `PrematurePromotion`, производился на `8` версии java: java-1.8.0-openjdk.x86_6.
-`PrematurePromotion` запускался на `21` версии java: java-21-openjdk.x86_64.
+`PrematurePromotion` запускался на `21` версии java: java-21-openjdk.x86_64, так как в версии `8` еще отсутствует флаг `-Xlog:gc=debug`.
 
 ## Оглавление
 
@@ -48,7 +48,7 @@ Max memory: 477 MB
  - Флаг `-Xmx512m` определяет максимальный размер динамической памяти (heap) для java-приложения как `512 MB`.
 
 Комментарии:
- - Реальное значение памяти, доступной приложению слегка меньше, так как JVM резервирует небольшой объем памяти для внутренних задач. Таких как аллоцирование новых объектов или сборка мусора. Также доступная память может уменьшаться из-за выравнивания.
+ - Реальное значение памяти, доступной приложению слегка меньше, так как JVM резервирует небольшой объем памяти для внутренних задач, таких как аллоцирование новых объектов или сборка мусора. Также доступная память может уменьшаться из-за выравнивания.
 
 <h3 id="Xms512m">Подпункт 1.2. Флаг -Xms512m</h3>
 
@@ -85,7 +85,7 @@ Heap
  - Флаг `-XX:+PrintGCDetails` выводит детальную информацию о сборке мусора и использовании динамической памяти.
 
 Комментарии:
- - В логах GC видим, что eden space занимает `149.5 MB`, две области survivor space (from и to) - по `21 MB` каждая. Old gen аллоцирует `341.5 MB`.
+ - В логах GC видим, что eden space занимает `149.5 MB`, две области survivor space (from и to) - по `21 MB` каждая. Old genenation аллоцирует `341.5 MB`.
  - Объекты могут одновременно существовать лишь в eden space, old generation space и одном из двух регионов survivor space. Три этих региона памяти в сумме и дают указанные в настройках JVM `512 MB`, однако объем реально доступной памяти - это сумма eden space и old generation space. Видимо, это вызвано тем, что долгое отсутствие новые объектов переведет все объекты в old generation, после чего приложение напрямую сможет заполнить только eden space.
 
 <h3 id="SurvivorRatio">Подпункт 1.4. Флаг -XX:+SurvivorRatio</h3>
@@ -191,7 +191,7 @@ vsm@fedora:~/VSCodeProjects/optimization-labs$ wc -l log2-4.txt
  - Флаг `-Dno.ref.clearing=true` меняет поведение программы, отключая вызов метода `clear()` у фантомной ссылки, в результате выделенная память не возвращается JVM.
 
 Комментарии:
- - Отсутствие очисток ведет к заполнению old generation. Теперь примерно половина всех чисток - полные.
+ - Отсутствие вызовов `clear()` ведет к заполнению old generation. Теперь примерно половина всех чисток - полные.
  - Бесконечное время жизни объектов ведет к существенному уменьшению частоты чисток. По сравнению с первым запуском частота уменьшилась примерно в `15` раз.
  - Рано или поздно приведет к `OutOfMemory`.
 
@@ -205,6 +205,8 @@ vsm@fedora:~/VSCodeProjects/optimization-labs$ wc -l log2-4.txt
 Результат запуска:
 ```
 vsm@fedora:~/VSCodeProjects/optimization-labs$ timeout 30 java -verbose:gc -XX:MaxTenuringThreshold=1 -XX:-UseAdaptiveSizePolicy -jar target/optdemo-0.0.1-SNAPSHOT.jar > log3-1.txt
+vsm@fedora:~/VSCodeProjects/optimization-labs$ wc -l log3-1.txt
+5 log3-1.txt
 ```
 
 [log3-1.txt](log3/log3-1.txt)
@@ -219,6 +221,8 @@ vsm@fedora:~/VSCodeProjects/optimization-labs$ timeout 30 java -verbose:gc -XX:M
 Результат запуска:
 ```
 vsm@fedora:~/VSCodeProjects/optimization-labs$ timeout 30 java -verbose:gc -Xmx24m -XX:NewSize=16m -XX:MaxTenuringThreshold=1 -XX:-UseAdaptiveSizePolicy -jar target/optdemo-0.0.1-SNAPSHOT.jar > log3-2.txt
+vsm@fedora:~/VSCodeProjects/optimization-labs$ wc -l log3-2.txt
+275 log3-2.txt
 ```
 
 [log3-2.txt](log3/log3-2.txt)
@@ -232,6 +236,8 @@ vsm@fedora:~/VSCodeProjects/optimization-labs$ timeout 30 java -verbose:gc -Xmx2
 Результат запуска:
 ```
 vsm@fedora:~/VSCodeProjects/optimization-labs$ timeout 30 java -Xlog:gc=debug -Xmx64m -XX:NewSize=32m -XX:MaxTenuringThreshold=1 -XX:-UseAdaptiveSizePolicy -jar target/optdemo-0.0.1-SNAPSHOT.jar > log3-3.txt
+vsm@fedora:~/VSCodeProjects/optimization-labs$ wc -l log3-3.txt
+30 log3-3.txt
 ```
 
 [log3-3.txt](log3/log3-3.txt)
@@ -248,6 +254,8 @@ vsm@fedora:~/VSCodeProjects/optimization-labs$ timeout 30 java -Xlog:gc=debug -X
 Результат запуска:
 ```
 vsm@fedora:~/VSCodeProjects/optimization-labs$ timeout 30 java -Dmax.chunks=1000 -verbose:gc -Xmx24m -XX:NewSize=16m -XX:MaxTenuringThreshold=1 -XX:-UseAdaptiveSizePolicy -jar target/optdemo-0.0.1-SNAPSHOT.jar > log3-4.txt
+vsm@fedora:~/VSCodeProjects/optimization-labs$ wc -l log3-4.txt
+50 log3-4.txt
 ```
 
 [log3-4.txt](log3/log3-4.txt)
@@ -258,12 +266,15 @@ vsm@fedora:~/VSCodeProjects/optimization-labs$ timeout 30 java -Dmax.chunks=1000
 Комментарии:
  - Число чанков уменьшилось по сравнению со значением по умолчанию в `10` раз, а лимиты памяти в `2-3` раза, так что в относительных пропорциях уменьшение все еще существенное, young generation все еще достаточно, происходят лишь быстрые очистки.
  - Видно, что теперь сборки начинаются не с `45-50 MB` занятой памяти, а стабильно с `17 MB`, что вызвано, скорее всего, именно уменьшением лимитов памяти.
+ - Также уменьшенные лимиты увеличили частоту самих чисток в `1.5-2` раза.
 
 <h3 id="NeverTenure">Подпункт 3.5. Флаг -XX:+NeverTenure</h3>
 
 Результат запуска:
 ```
 vsm@fedora:~/VSCodeProjects/optimization-labs$ timeout 30 java -verbose:gc -Xmx64m -XX:NewSize=32m -XX:+NeverTenure -XX:-UseAdaptiveSizePolicy -jar target/optdemo-0.0.1-SNAPSHOT.jar > log3-5.txt
+vsm@fedora:~/VSCodeProjects/optimization-labs$ wc -l log3-5.txt
+23 log3-5.txt
 ```
 
 [log3-5.txt](log3/log3-5.txt)
@@ -275,6 +286,7 @@ vsm@fedora:~/VSCodeProjects/optimization-labs$ timeout 30 java -verbose:gc -Xmx6
  - Запрет перехода в old generation потенциально увеличивает нагрузку на young generation, однако объекты не выходили за его пределы и в прошлом пункте, не переходят и сейчас, тем более лимиты памяти увеличены.
  - Можно также сделать вывод о том, что объекты не живут достаточно времени для перехода в old generation, так как серьезного увеличения частоты сборки мусора не наблюдается. Но этот вывод можно было сделать и из предыдущих пунктов.
  - Однако, пауза в среднем увеличилась в два раза, что говорит об увеличении количества объектов в young generation в сравнении с предыдущим пунктом.
+ - С другой стороны, увеличенные лимиты уменьшили частоту чисток.
 
 
 <h2 id="SoftReferences">Пункт 4. SoftReferences</h2>
@@ -341,7 +353,7 @@ vsm@fedora:~/VSCodeProjects/optimization-labs$ wc -l log5-1.txt
 [log5-1.txt](log3/log5-1.txt)
 
 Комментарии:
- - Код по существу отличается от аналогичного из [пункта 4.1](#NoAdditionalSettingsSoftReferences) лишь тем, что здесь создаются слабые ссылки на объект. При этом флаг создания таких ссылок установлен в значение `false`, то есть результат ожидаемо схож с результатом [пункта 4.1](#NoAdditionalSettingsSoftReferences)
+ - Код по существу отличается от аналогичного из [пункта 4.1](#NoAdditionalSettingsSoftReferences) лишь тем, что здесь создаются слабые ссылки на объект. При этом флаг создания таких ссылок установлен в значение `false` по умолчанию, то есть результат ожидаемо схож с результатом [пункта 4.1](#NoAdditionalSettingsSoftReferences)
 
 <h3 id="weak.refs">Подпункт 5.2. Флаг -Dweak.refs=true</h3>
 
